@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.maven.execution.DefaultMavenExecutionRequestPopulator;
@@ -25,9 +24,9 @@ import org.apache.maven.plugin.testing.AbstractMojoTestCase;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.PlexusContainerException;
 import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
-import org.eclipse.sisu.equinox.embedder.EquinoxLifecycleListener;
 import org.eclipse.tycho.core.shared.DependencyResolutionException;
 import org.eclipse.tycho.core.shared.MavenArtifactRepositoryReference;
+import org.eclipse.tycho.core.shared.MavenDependenciesResolver;
 import org.eclipse.tycho.osgi.configuration.MavenDependenciesResolverConfigurer;
 import org.junit.Test;
 
@@ -44,7 +43,7 @@ public class MavenDependenciesResolverTest extends AbstractMojoTestCase {
         populator.populateDefaults(session.getRequest());
         getContainer().lookup(LegacySupport.class).setSession(session);
         MavenDependenciesResolverConfigurer resolver = (MavenDependenciesResolverConfigurer) getContainer()
-                .lookup(EquinoxLifecycleListener.class, "MavenDependenciesResolver");
+                .lookup(MavenDependenciesResolver.class);
         // the artifact must be pre-existing in the local repo, so the dep is added to pom.xml for this module. Test could be enhanced to fetch the artifact.
         Collection<?> deps = resolver.resolve("commons-io", "commons-io", "2.11.0", "jar", null, List.of(),
                 Integer.MAX_VALUE, session.getRequest().getRemoteRepositories().stream()
@@ -60,7 +59,7 @@ public class MavenDependenciesResolverTest extends AbstractMojoTestCase {
                                 return repo.getId();
                             }
                         }).map(MavenArtifactRepositoryReference.class::cast) //
-                        .collect(Collectors.toList()),
+                        .toList(),
                 session);
         assertEquals(deps.toString(), 1, deps.size());
         FileUtils.deleteDirectory(localRepo);

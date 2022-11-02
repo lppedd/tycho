@@ -23,6 +23,10 @@ and the minimal reproducer project to Tycho's [issue tracker](https://github.com
 
 ## Development environment
 
+[![Create Eclipse Development Environment for Tycho](https://download.eclipse.org/oomph/www/setups/svg/tycho.svg)](https://www.eclipse.org/setups/installer/?url=https://raw.githubusercontent.com/eclipse-tycho/tycho/master/setup/TychoDevelopmentConfiguration.setup&show=true "Click to open Eclipse-Installer Auto Launch or drag into your running installer")
+
+&nbsp;&nbsp;&nbsp;or just&nbsp;&nbsp;&nbsp;
+
 <a href="https://mickaelistria.github.io/redirctToEclipseIDECloneCommand/redirect.html"><img src="https://mickaelistria.github.io/redirctToEclipseIDECloneCommand/cloneToEclipseBadge.png" alt="Clone to Eclipse IDE"/></a>
 
 ### Prerequisites
@@ -243,9 +247,9 @@ The micro version will only be used for critical bug-fix releases, in most other
 The following list contains changes that only can happen between major version updates:
 
 - changing the java version to run the build
-- requiring a new minimum Maven version (e.g. once we require maven 4)
+- requiring a new minimum maven version (e.g. once we require maven 4.x)
 - requiring to change their pom.xml in a non trivial way (e.g. beside
-changing some configuration value in an existing mojo)
+changing some configuration value in an existing mojo, or providing a drop-in replacement in the migration guide)
 
 If you require such a change, please note that in the issue and we will assign the next major release to it, those changes would not be merged until the next major release keep your changes small and local as it possible take some time and you probably have to catch up with minor changes in the meantime.
 

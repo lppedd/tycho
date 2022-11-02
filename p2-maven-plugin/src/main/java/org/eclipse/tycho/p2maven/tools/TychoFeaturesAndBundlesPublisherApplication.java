@@ -55,7 +55,6 @@ import org.eclipse.osgi.service.resolver.BundleDescription;
 import org.eclipse.tycho.p2maven.advices.PGPSignatureAdvice;
 import org.osgi.framework.BundleException;
 
-@SuppressWarnings("restriction")
 public class TychoFeaturesAndBundlesPublisherApplication extends AbstractPublisherApplication {
 
     private static final String MAVEN_PREFIX = "maven-";
@@ -195,8 +194,7 @@ public class TychoFeaturesAndBundlesPublisherApplication extends AbstractPublish
                         // workaround Bug 539672
                         Map<String, String> properties = super.getInstallableUnitProperties(null);
                         if (properties != null) {
-                            if (descriptor instanceof ArtifactDescriptor) {
-                                ArtifactDescriptor artifactDescriptor = (ArtifactDescriptor) descriptor;
+                            if (descriptor instanceof ArtifactDescriptor artifactDescriptor) {
                                 for (Map.Entry<String, String> entry : properties.entrySet()) {
                                     String key = entry.getKey();
                                     String value = entry.getValue();

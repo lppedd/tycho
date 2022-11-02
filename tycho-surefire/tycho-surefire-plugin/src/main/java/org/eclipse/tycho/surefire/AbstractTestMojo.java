@@ -80,7 +80,6 @@ import org.eclipse.tycho.DefaultArtifactKey;
 import org.eclipse.tycho.OptionalResolutionAction;
 import org.eclipse.tycho.PlatformPropertiesUtils;
 import org.eclipse.tycho.ReactorProject;
-import org.eclipse.tycho.TychoConstants;
 import org.eclipse.tycho.artifacts.DependencyArtifacts;
 import org.eclipse.tycho.core.BundleProject;
 import org.eclipse.tycho.core.DependencyResolver;
@@ -108,7 +107,7 @@ public abstract class AbstractTestMojo extends AbstractMojo {
 
     private static final String SYSTEM_JDK = "jdk";
 
-    private static String[] UNIX_SIGNAL_NAMES = { "not a signal", // padding, signals start with 1
+    private static final String[] UNIX_SIGNAL_NAMES = { "not a signal", // padding, signals start with 1
             "SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", "SIGABRT", "SIGBUS", "SIGFPE", "SIGKILL", "SIGUSR1",
             "SIGSEGV", "SIGUSR2", "SIGPIPE", "SIGALRM", "SIGTERM", "SIGSTKFLT", "SIGCHLD", "SIGCONT", "SIGSTOP",
             "SIGTSTP", "SIGTTIN", "SIGTTOU", "SIGURG", "SIGXCPU", "SIGXFSZ", "SIGVTALRM", "SIGPROF", "SIGWINCH",
@@ -311,13 +310,13 @@ public abstract class AbstractTestMojo extends AbstractMojo {
     /**
      * Run tests using UI (true) or headless (false) test harness.
      */
-    @Parameter(defaultValue = "false")
+    @Parameter(property = "tycho.surefire.useUIHarness", defaultValue = "false")
     private boolean useUIHarness;
 
     /**
      * Run tests in UI (true) or background (false) thread. Only applies to UI test harness.
      */
-    @Parameter(defaultValue = "true")
+    @Parameter(property = "tycho.surefire.useUIThread", defaultValue = "true")
     private boolean useUIThread;
 
     /**
@@ -491,7 +490,7 @@ public abstract class AbstractTestMojo extends AbstractMojo {
      *
      * @since 1.3.0
      */
-    @Parameter(property = "trimStackTrace", defaultValue = "true")
+    @Parameter(property = "trimStackTrace", defaultValue = "false")
     private boolean trimStackTrace;
 
     /**
@@ -691,6 +690,10 @@ public abstract class AbstractTestMojo extends AbstractMojo {
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
+        if (!isCompatiblePackagingType(project.getPackaging())) {
+            getLog().debug("Skip because of incompatible packaging type: " + project.getPackaging());
+            return;
+        }
         if (shouldSkip()) {
             getLog().info("Skipping tests");
             return;
@@ -720,6 +723,8 @@ public abstract class AbstractTestMojo extends AbstractMojo {
             }
         }
     }
+
+    protected abstract boolean isCompatiblePackagingType(String packaging);
 
     protected abstract boolean shouldRun();
 
@@ -1052,7 +1057,9 @@ public abstract class AbstractTestMojo extends AbstractMojo {
         return Arrays.asList("**/*$*");
     }
 
-    protected abstract List<String> getDefaultInclude();
+    protected List<String> getDefaultInclude() {
+        return List.of("**/Test*.class", "**/*Test.class", "**/*Tests.class", "**/*TestCase.class");
+    }
 
     private void storeProperties(Map<String, String> propertiesMap, File file) throws MojoExecutionException {
         Properties p = new Properties();
@@ -1143,8 +1150,7 @@ public abstract class AbstractTestMojo extends AbstractMojo {
 
     private String decodeReturnCode(int result) {
         try {
-            Properties properties = (Properties) DefaultReactorProject.adapt(project)
-                    .getContextValue(TychoConstants.CTX_MERGED_PROPERTIES);
+            Properties properties = DefaultReactorProject.adapt(project).getProperties();
             if (PlatformPropertiesUtils.OS_LINUX.equals(PlatformPropertiesUtils.getOS(properties))) {
                 int signal = result - 128;
                 if (signal > 0 && signal < UNIX_SIGNAL_NAMES.length) {
@@ -1192,8 +1198,7 @@ public abstract class AbstractTestMojo extends AbstractMojo {
 
         cli.addVMArguments("-Dosgi.noShutdown=false");
 
-        Properties properties = (Properties) DefaultReactorProject.adapt(project)
-                .getContextValue(TychoConstants.CTX_MERGED_PROPERTIES);
+        Properties properties = DefaultReactorProject.adapt(project).getProperties();
         cli.addVMArguments("-Dosgi.os=" + PlatformPropertiesUtils.getOS(properties), //
                 "-Dosgi.ws=" + PlatformPropertiesUtils.getWS(properties), //
                 "-Dosgi.arch=" + PlatformPropertiesUtils.getArch(properties));

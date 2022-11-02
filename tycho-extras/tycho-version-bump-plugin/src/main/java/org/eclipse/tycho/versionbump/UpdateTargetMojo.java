@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import javax.xml.parsers.ParserConfigurationException;
 
@@ -102,12 +101,12 @@ public class UpdateTargetMojo extends AbstractUpdateMojo {
         @Override
         public List<? extends Location> getLocations() {
             return delegate.getLocations().stream().map(location -> {
-                if (location instanceof InstallableUnitLocation) {
-                    return new LatestVersionLocation((InstallableUnitLocation) location);
+                if (location instanceof InstallableUnitLocation iuLocation) {
+                    return new LatestVersionLocation(iuLocation);
                 } else {
                     return location;
                 }
-            }).collect(Collectors.toList());
+            }).toList();
         }
 
         @Override
@@ -142,7 +141,7 @@ public class UpdateTargetMojo extends AbstractUpdateMojo {
 
         @Override
         public List<? extends TargetDefinition.Unit> getUnits() {
-            return delegate.getUnits().stream().map(LatestVersionUnit::new).collect(Collectors.toList());
+            return delegate.getUnits().stream().map(LatestVersionUnit::new).toList();
         }
 
         @Override

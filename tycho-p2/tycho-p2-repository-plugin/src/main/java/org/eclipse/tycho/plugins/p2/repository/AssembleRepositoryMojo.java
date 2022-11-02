@@ -12,8 +12,6 @@
  *******************************************************************************/
 package org.eclipse.tycho.plugins.p2.repository;
 
-import static java.util.stream.Collectors.toList;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
@@ -27,14 +25,12 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.codehaus.plexus.util.FileUtils;
-import org.eclipse.sisu.equinox.EquinoxServiceFactory;
 import org.eclipse.tycho.PackagingType;
 import org.eclipse.tycho.core.TychoProject;
 import org.eclipse.tycho.core.osgitools.EclipseRepositoryProject;
 import org.eclipse.tycho.core.resolver.shared.DependencySeed;
 import org.eclipse.tycho.core.utils.TychoProjectUtils;
 import org.eclipse.tycho.model.Category;
-import org.eclipse.tycho.osgi.TychoServiceFactory;
 import org.eclipse.tycho.p2.facade.RepositoryReferenceTool;
 import org.eclipse.tycho.p2.tools.DestinationRepositoryDescriptor;
 import org.eclipse.tycho.p2.tools.FacadeException;
@@ -181,8 +177,8 @@ public class AssembleRepositoryMojo extends AbstractRepositoryMojo {
     @Component
     private RepositoryReferenceTool repositoryReferenceTool;
 
-    @Component(hint = TychoServiceFactory.HINT)
-    private EquinoxServiceFactory p2;
+    @Component()
+    MirrorApplicationService mirrorApp;
 
     @Component(role = TychoProject.class, hint = PackagingType.TYPE_ECLIPSE_REPOSITORY)
     private EclipseRepositoryProject eclipseRepositoryProject;
@@ -201,15 +197,14 @@ public class AssembleRepositoryMojo extends AbstractRepositoryMojo {
                     return;
                 }
 
-                RepositoryReferences sources = getVisibleRepositories();
-
-                MirrorApplicationService mirrorApp = p2.getService(MirrorApplicationService.class);
+                RepositoryReferences sources = repositoryReferenceTool.getVisibleRepositories(getProject(),
+                        getSession(), RepositoryReferenceTool.REPOSITORIES_INCLUDE_CURRENT_MODULE);
 
                 List<RepositoryReference> repositoryRefrences = getCategories().stream()//
                         .map(Category::getRepositoryReferences)//
                         .flatMap(List::stream)//
                         .map(ref -> new RepositoryReference(ref.getName(), ref.getLocation(), ref.isEnabled()))//
-                        .collect(toList());
+                        .toList();
 
                 DestinationRepositoryDescriptor destinationRepoDescriptor = new DestinationRepositoryDescriptor(
                         destination, repositoryName, compress, xzCompress, keepNonXzIndexFiles,
@@ -233,11 +228,6 @@ public class AssembleRepositoryMojo extends AbstractRepositoryMojo {
         } catch (IOException e) {
             throw new MojoExecutionException("Error copying resources", e);
         }
-    }
-
-    protected RepositoryReferences getVisibleRepositories() throws MojoExecutionException, MojoFailureException {
-        int flags = RepositoryReferenceTool.REPOSITORIES_INCLUDE_CURRENT_MODULE;
-        return repositoryReferenceTool.getVisibleRepositories(getProject(), getSession(), flags);
     }
 
     private List<Category> getCategories() {

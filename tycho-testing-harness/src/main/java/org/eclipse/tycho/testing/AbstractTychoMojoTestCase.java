@@ -70,8 +70,7 @@ public class AbstractTychoMojoTestCase extends AbstractMojoTestCase {
 
     @Override
     protected String getCustomConfigurationName() {
-        String name = AbstractTychoMojoTestCase.class.getName().replace('.', '/') + ".xml";
-        return name;
+        return AbstractTychoMojoTestCase.class.getName().replace('.', '/') + ".xml";
     }
 
     protected ArtifactRepository getLocalRepository() throws Exception {
@@ -79,9 +78,7 @@ public class AbstractTychoMojoTestCase extends AbstractMojoTestCase {
 
         File path = new File("target/local-repo").getAbsoluteFile();
 
-        ArtifactRepository r = repoSystem.createLocalRepository(path);
-
-        return r;
+        return repoSystem.createLocalRepository(path);
     }
 
     protected MavenExecutionRequest newMavenExecutionRequest(File pom) throws Exception {
@@ -192,16 +189,16 @@ public class AbstractTychoMojoTestCase extends AbstractMojoTestCase {
     protected MavenProject getProjectWithArtifactId(List<MavenProject> projects, String artifactId)
             throws AssertionError, Exception {
         return projects.stream().filter(p -> artifactId.equals(p.getArtifactId())).findFirst()
-                .orElseThrow(() -> new AssertionError(
-                        "Project with artifactId " + artifactId + " not found, projects discovered are: "
-                                + projects.stream().map(p -> p.getArtifactId()).collect(Collectors.joining(", "))));
+                .orElseThrow(() -> new AssertionError("Project with artifactId " + artifactId
+                        + " not found, projects discovered are: "
+                        + projects.stream().map(MavenProject::getArtifactId).collect(Collectors.joining(", "))));
     }
 
     protected MavenProject getProjectWithName(List<MavenProject> projects, String name)
             throws AssertionError, Exception {
         return projects.stream().filter(p -> name.equals(p.getName())).findFirst().orElseThrow(
                 () -> new AssertionError("Project with name " + name + " not found, projects discovered are: "
-                        + projects.stream().map(p -> p.getName()).collect(Collectors.joining(", "))));
+                        + projects.stream().map(MavenProject::getName).collect(Collectors.joining(", "))));
     }
 
     /**

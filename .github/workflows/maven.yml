@@ -31,7 +31,7 @@ jobs:
             8
             11
             17
-        distribution: 'adopt'
+        distribution: 'temurin'
     - name: Cache local Maven repository
       uses: actions/cache@v3
       with:
@@ -40,7 +40,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-maven-${{ matrix.os }}-
     - name: Set up Maven
-      uses: stCarolas/setup-maven@v4.4
+      uses: stCarolas/setup-maven@v4.5
       with:
         maven-version: 3.8.6
     - name: Build Tycho
@@ -60,4 +60,12 @@ jobs:
         path: |
           ${{ github.workspace }}/tycho-its/target/surefire-reports/*.xml
       if: github.event.pull_request.draft == false
-
+  event_file:
+    name: "Event File"
+    runs-on: ubuntu-latest
+    steps:
+    - name: Upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: Event File
+        path: ${{ github.event_path }}

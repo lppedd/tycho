@@ -2,7 +2,101 @@
 
 This page describes the noteworthy improvements provided by each release of Eclipse Tycho.
 
-## 3.0.0 (under development)
+## 4.0.0 (under development)
+
+### Migration guide 3.x > 4.x
+
+#### Properties for tycho-surefire-plugin's 'useUIThread' and 'useUIHarness' parameters
+
+The configuration parameters `useUIThread` and `useUIHarness` parameter of the `tycho-surefire-plugin` can now be set via the properties `tycho.surefire.useUIHarness` respectively `tycho.surefire.useUIThread`.
+
+#### Minimum version for running integration/plugin tests
+
+Previously the `osgibooter` has claimed to be Java 1.5 compatible but as such old JVMs are hard to find/test against already some newer code was slipping in. It was therefore decided to raise the minimum requirement to Java 1.8 what implicitly makes it the lowest bound for running integration/plugin tests with Tycho.
+
+This requires any tests using pre 1.8 java jvm to be upgrade to at least running on Java 1.8.
+
+#### Using integration/plugin tests with eclipse-plugin packaging
+
+Some improvements have been made for the test execution with `eclipse-plugin` packaging that probably needs some adjustments to your pom configuration or build scripts:
+
+1. The property `skipITs` has been renamed to `tycho.plugin-test.skip`
+2. the mojo `integration-test` has been renamed to `plugin-test`
+3. the default pattern of the former `integration-test` has been changed from `**/PluginTest*.class", "**/*IT.class` to the maven default `**/Test*.class", "**/*Test.class", "**/*Tests.class", "**/*TestCase.class`
+4. the former `integration-test` mojo is no longer part of the default life-cycle, that means to use it it has to be explicitly be enabled to be more flexible and this is how standard maven behaves
+
+To restore old behaviour you can add the follwoing snippet to your (master) pom:
+
+```
+<plugin>
+	<groupId>org.eclipse.tycho</groupId>
+	<artifactId>tycho-surefire-plugin</artifactId>
+	<version>${tycho-version}</version>
+	<executions>
+		<execution>
+			<id>execute-plugin-tests</id>
+			<configuration>
+				<includes>**/PluginTest*.class,**/*IT.class</includes>
+			</configuration>
+			<goals>
+				<goal>plugin-test</goal>
+				<goal>verify</goal>
+			</goals>
+		</execution>
+	</executions>
+</plugin>
+```
+
+### New Maven dependency consistency check
+
+Tycho has a new mojo to check the consistency of the pom used for your bundle.
+To enable this add the following to your pom (or adjust an existing configuration):
+
+```
+<plugin>
+    <groupId>org.eclipse.tycho</groupId>
+    <artifactId>tycho-packaging-plugin</artifactId>
+    <executions>
+      <execution>
+        <id>validate-pom</id>
+        <phase>verify</phase>
+        <goals>
+          <goal>verify-osgi-pom</goal>
+        </goals>
+      </execution>
+    </executions>
+      <configuration>
+        <archive>
+          <addMavenDescriptor>true</addMavenDescriptor>
+        </archive>
+        <mapP2Dependencies>true</mapP2Dependencies>
+      </configuration>
+</plugin>
+```
+This will then:
+
+1. add a new execution of the `verify-osgi-pom` mojo
+2. enable the generation and embedding of a maven descriptor (optional if you fully manage your pom.xml with all dependencies)
+3. map P2 dependencies to maven dependencies (optional, but most likely required to get good results)
+
+### Default value change for trimStackTrace
+
+tycho-surefire-plugin had set the default value of the trimStackTrace option to true.
+The default will now be aligned with maven-surefire-plugin at false and will need to be manually adjusted for users that really need the stack traces trimmed.
+
+Old behavior can be restored through configuration of the tycho-surefire-plugin:
+
+```
+<plugin>
+    <groupId>org.eclipse.tycho</groupId>
+    <artifactId>tycho-surefire-plugin</artifactId>
+    <configuration>
+        <trimStackTrace>true</trimStackTrace>
+    </configuration>
+</plugin>
+```
+
+## 3.0.0
 
 ### Tycho now support forking of the Eclipse Java Compiler
 
@@ -295,6 +389,10 @@ This can be useful if you like to execute the build with multiple threads (e.g. 
 
 ### Migration guide 2.x -> 3.x
 
+#### Java 17 required as runtime VM
+
+From 3.x on Tycho requires Java 17 as a runtime VM, but you can still compile code for older releases.
+
 #### Default value for archive-products has changed
 
 Previously Tycho uses `zip` for all platforms when packaging a product, now `.tar.gz` is used for linux+mac. If you want you can restore old behaviour by:
@@ -381,6 +479,14 @@ It was hardcoded to "tooling" always and had no practical meaning to change.
 
 `applicationArgs` (previously known as `applicationsArgs`) has been corrected to not perform any
 interpretation of whitepace and quotes anymore. Individual arguments are now used literally (just like `jvmArgs`).
+
+## 2.7.5
+
+Fixes:
+
+- [reverted] Not all (direct) requirements of a feature are considered when building an update-site
+- [backport] Fix MavenLocation scope filtering
+- org.eclipse.tycho:tycho-packaging-plugin:2.7.3:package-plugin issuing error <<pluginname>>/target/classes does not exist
 
 ## 2.7.4
 

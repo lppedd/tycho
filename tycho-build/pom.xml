@@ -3,7 +3,7 @@
 	<parent>
 		<groupId>org.eclipse.tycho</groupId>
 		<artifactId>tycho</artifactId>
-		<version>3.1.0-SNAPSHOT</version>
+		<version>4.0.0-SNAPSHOT</version>
 	</parent>
 	<artifactId>tycho-build</artifactId>
 
@@ -45,13 +45,6 @@
 			<artifactId>tycho-embedder-api</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		<!--
-		<dependency>
-			<groupId>org.eclipse.tycho</groupId>
-			<artifactId>tycho-core</artifactId>
-			<version>${project.version}</version>
-		</dependency>
--->
 		<dependency>
 			<groupId>org.eclipse.platform</groupId>
 			<artifactId>org.eclipse.equinox.p2.core</artifactId>
@@ -130,17 +123,6 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.eclipse.tycho</groupId>
-			<artifactId>org.eclipse.tycho.p2.resolver.impl</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.eclipse.tycho</groupId>
-			<artifactId>org.eclipse.tycho.p2.maven.repository</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-
-		<dependency>
 			<groupId>org.eclipse.platform</groupId>
 			<artifactId>org.eclipse.equinox.p2.metadata.repository</artifactId>
 			<version>1.4.100</version>
@@ -149,6 +131,12 @@
 			<groupId>org.eclipse.tycho</groupId>
 			<artifactId>p2-maven-plugin</artifactId>
 			<version>${project.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.felix</groupId>
+					<artifactId>org.apache.felix.scr</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 	</dependencies>

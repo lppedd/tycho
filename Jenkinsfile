@@ -18,7 +18,7 @@ pipeline {
 		label agentLabel
 	}
 	tools {
-		maven 'apache-maven-3.8.5'
+		maven 'apache-maven-3.8.6'
 		jdk 'openjdk-jdk17-latest'
 	}
 	stages {
@@ -28,7 +28,6 @@ pipeline {
 			}
 			post {
 				always {
-					archiveArtifacts artifacts: '*/*/target/work/data/.metadata/.log,*/*/target/work/configuration/*.log'
 					junit '*/target/surefire-reports/TEST-*.xml,*/*/target/surefire-reports/TEST-*.xml,*/*/*/target/surefire-reports/TEST-*.xml'
 				}
 			}

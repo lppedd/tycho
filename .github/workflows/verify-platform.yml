@@ -33,7 +33,7 @@ jobs:
             8
             11
             17
-        distribution: 'adopt'
+        distribution: 'temurin'
     - name: Cache local Maven repository
       uses: actions/cache@v3
       with:
@@ -42,7 +42,7 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-maven-verify-platform-
     - name: Set up Maven
-      uses: stCarolas/setup-maven@v4.4
+      uses: stCarolas/setup-maven@v4.5
       with:
         maven-version: 3.8.6
     - name: Build Tycho
@@ -68,4 +68,5 @@ jobs:
         -Dmaven.wagon.httpconnectionManager.ttlSeconds=120
         -DskipTests
         -Pbree-libs
+        -Dtycho.version=3.1.0-SNAPSHOT
         clean verify

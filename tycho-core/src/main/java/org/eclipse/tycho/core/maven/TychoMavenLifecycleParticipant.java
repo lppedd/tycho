@@ -146,7 +146,8 @@ public class TychoMavenLifecycleParticipant extends AbstractMavenLifecyclePartic
                             session);
                     for (MavenProject project : projects) {
                         Model model = project.getModel();
-                        Set<String> existingDependencies = model.getDependencies().stream().map(dep -> getKey(dep))
+                        Set<String> existingDependencies = model.getDependencies().stream()
+                                .map(TychoMavenLifecycleParticipant::getKey)
                                 .collect(Collectors.toCollection(HashSet::new));
                         Collection<MavenProject> dependencyProjects = closure.getDependencyProjects(project);
                         for (MavenProject dependencyProject : dependencyProjects) {
@@ -191,13 +192,13 @@ public class TychoMavenLifecycleParticipant extends AbstractMavenLifecyclePartic
             Collection<MavenProject> dependencyProjects, String indent, Set<MavenProject> visited) throws IOException {
         if (visited.add(project)) {
             List<IRequirement> projectRequirements = closure.getProjectUnits(project).stream()
-                    .flatMap(iu -> iu.getRequirements().stream()).collect(Collectors.toList());
+                    .flatMap(iu -> iu.getRequirements().stream()).toList();
             String indent2 = indent + "\t";
             for (MavenProject dependency : dependencyProjects) {
                 writer.write(indent + " depends on " + dependency.getId() + ":\r\n");
                 for (IRequirement requirement : projectRequirements) {
                     List<IInstallableUnit> satisfies = closure.getProjectUnits(dependency).stream()
-                            .filter(iu -> iu.satisfies(requirement)).collect(Collectors.toList());
+                            .filter(iu -> iu.satisfies(requirement)).toList();
                     for (IInstallableUnit satIU : satisfies) {
                         writer.write(indent2 + "provides " + satIU + " that satisfies " + requirement + "\r\n");
                     }
@@ -223,8 +224,8 @@ public class TychoMavenLifecycleParticipant extends AbstractMavenLifecyclePartic
                 // do not use plexus.dispose() as this only works once and we
                 // want to reuse the factory multiple times but make sure the
                 // equinox framework is fully recreated
-                if (factory instanceof Disposable) {
-                    ((Disposable) factory).dispose();
+                if (factory instanceof Disposable disposable) {
+                    disposable.dispose();
                 }
             } catch (ComponentLookupException e) {
                 throw new MavenExecutionException(e.getMessage(), e);
@@ -271,19 +272,17 @@ public class TychoMavenLifecycleParticipant extends AbstractMavenLifecyclePartic
         Predicate<MavenProject> takeWhile = Predicate.not(p -> failFast && !resolutionErrors.isEmpty());
         if (degreeOfConcurrency > 1) {
             ForkJoinPool executor = new ForkJoinPool(degreeOfConcurrency);
-            ForkJoinTask<?> future = executor.submit(() -> {
-                projects.parallelStream().takeWhile(takeWhile).forEach(resolveProject);
-            });
+            ForkJoinTask<?> future = executor
+                    .submit(() -> projects.parallelStream().takeWhile(takeWhile).forEach(resolveProject));
             try {
                 future.get();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } catch (ExecutionException e) {
                 Throwable cause = e.getCause();
-                if (cause instanceof RuntimeException) {
-                    throw (RuntimeException) cause;
-                }
-                throw new RuntimeException("resolve dependencies failed", cause);
+                throw cause instanceof RuntimeException ex //
+                        ? ex
+                        : new RuntimeException("resolve dependencies failed", cause);
             } finally {
                 executor.shutdown();
             }

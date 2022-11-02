@@ -204,11 +204,14 @@ class PlexusConnectFramework //
 		try {
 			ServiceTracker<?, ?> serviceTracker = trackerMap.computeIfAbsent(clazz, cls -> {
 				ServiceTracker<?, ?> tracker = new ServiceTracker<>(framework.getBundleContext(), cls, null);
-				tracker.open();
+				// Sometimes Equinox thinks that classes are not compatible even if they
+				// are...?!? So we track all services here in case of a DummyClassRealm
+				tracker.open(realm instanceof DummyClassRealm);
 				return tracker;
 			});
 			if (filter == null) {
-				return clazz.cast(serviceTracker.getService());
+				Object service = serviceTracker.getService();
+				return clazz.cast(service);
 			}
 			Filter f = framework.getBundleContext().createFilter(filter);
 			for (var entry : serviceTracker.getTracked().entrySet()) {
@@ -226,8 +229,12 @@ class PlexusConnectFramework //
 	public Optional<Bundle> getBundle(Class<?> classFromBundle) {
 		URI location = getLocationFromClass(classFromBundle);
 		if (location != null) {
-			debug("Searching bundle for class " + classFromBundle + " and location " + location);
 			BundleContext bundleContext = getFramework().getBundleContext();
+			if (bundleContext == null) {
+				// already shut down
+				return Optional.empty();
+			}
+			debug("Searching bundle for class " + classFromBundle + " and location " + location);
 			Bundle[] bundles = bundleContext.getBundles();
 			for (Bundle bundle : bundles) {
 				String bundleLocation = bundle.getLocation();

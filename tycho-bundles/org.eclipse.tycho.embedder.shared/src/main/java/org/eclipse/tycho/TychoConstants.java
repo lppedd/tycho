@@ -13,6 +13,8 @@
  *******************************************************************************/
 package org.eclipse.tycho;
 
+import java.util.regex.Pattern;
+
 public interface TychoConstants {
 
     static final String P2_GROUPID_PREFIX = "p2.";
@@ -34,12 +36,13 @@ public interface TychoConstants {
     static final String CTX_ECLIPSE_PLUGIN_TEST_CLASSPATH = CTX_BASENAME + "/eclipsePluginTestClasspath";
     static final String CTX_ECLIPSE_PLUGIN_TEST_EXTRA_CLASSPATH = CTX_BASENAME + "/eclipsePluginTestClasspathExtra";
 
-    static final String CTX_MERGED_PROPERTIES = CTX_BASENAME + "/mergedProperties";
     static final String CTX_TARGET_PLATFORM_CONFIGURATION = CTX_BASENAME + "/targetPlatformConfiguration";
     static final String CTX_EXECUTION_ENVIRONMENT_CONFIGURATION = CTX_BASENAME + "/executionEnvironmentConfiguration";
 
     static final String CTX_DEPENDENCY_WALKER = CTX_BASENAME + "/dependencyWalker";
     static final String CTX_DEPENDENCY_SEEDS = CTX_BASENAME + "/dependencySeeds";
+
+    static final Pattern PLATFORM_URL_PATTERN = Pattern.compile("platform:/(plugin|fragment)/([^/]*)(/)*.*");
 
     public String JAR_EXTENSION = "jar";
 

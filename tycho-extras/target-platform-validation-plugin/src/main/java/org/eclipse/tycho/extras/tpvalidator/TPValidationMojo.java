@@ -32,7 +32,6 @@ import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
 import org.apache.maven.toolchain.ToolchainManager;
 import org.codehaus.plexus.logging.Logger;
-import org.eclipse.sisu.equinox.EquinoxServiceFactory;
 import org.eclipse.tycho.ArtifactType;
 import org.eclipse.tycho.PackagingType;
 import org.eclipse.tycho.TargetEnvironment;
@@ -41,7 +40,6 @@ import org.eclipse.tycho.core.ee.shared.ExecutionEnvironment;
 import org.eclipse.tycho.core.ee.shared.ExecutionEnvironmentConfiguration;
 import org.eclipse.tycho.core.ee.shared.SystemCapability;
 import org.eclipse.tycho.core.resolver.DefaultTargetPlatformConfigurationReader;
-import org.eclipse.tycho.osgi.TychoServiceFactory;
 import org.eclipse.tycho.osgi.adapters.MavenLoggerAdapter;
 import org.eclipse.tycho.p2.resolver.facade.P2Resolver;
 import org.eclipse.tycho.p2.resolver.facade.P2ResolverFactory;
@@ -108,8 +106,8 @@ public class TPValidationMojo extends AbstractMojo {
     @Parameter
     private String executionEnvironment;
 
-    @Component(hint = TychoServiceFactory.HINT)
-    protected EquinoxServiceFactory equinox;
+    @Component
+    DirectorRuntime director;
 
     @Component
     private Logger logger;
@@ -117,10 +115,10 @@ public class TPValidationMojo extends AbstractMojo {
     @Component
     private ToolchainManager toolchainManager;
 
+    @Component
     private P2ResolverFactory factory;
 
     public void execute() throws MojoExecutionException {
-        this.factory = this.equinox.getService(P2ResolverFactory.class);
 
         List<TPError> errors = new ArrayList<>();
         File[] targetFilesToValidate;
@@ -185,7 +183,6 @@ public class TPValidationMojo extends AbstractMojo {
             // create resolver
             this.logger.info("Validating " + targetFile + "...");
             RepositoryReferences ref = new RepositoryReferences();
-            DirectorRuntime director = this.equinox.getService(DirectorRuntime.class);
             DirectorRuntime.Command directorCommand = director.newInstallCommand();
 
             TargetDefinitionFile targetDefinition = TargetDefinitionFile.read(targetFile);
@@ -196,8 +193,7 @@ public class TPValidationMojo extends AbstractMojo {
             P2Resolver resolver = this.factory.createResolver(new MavenLoggerAdapter(this.logger, false));
 
             for (Location location : targetDefinition.getLocations()) {
-                if (location instanceof InstallableUnitLocation) {
-                    InstallableUnitLocation p2Loc = (InstallableUnitLocation) location;
+                if (location instanceof InstallableUnitLocation p2Loc) {
                     for (Repository repo : p2Loc.getRepositories()) {
                         ref.addArtifactRepository(repo.getLocation());
                         ref.addMetadataRepository(repo.getLocation());

@@ -23,7 +23,6 @@ import org.codehaus.plexus.component.annotations.Requirement;
 import org.codehaus.plexus.component.repository.exception.ComponentLookupException;
 import org.codehaus.plexus.logging.Logger;
 import org.eclipse.tycho.ReactorProject;
-import org.eclipse.tycho.TychoConstants;
 import org.eclipse.tycho.core.DependencyResolver;
 import org.eclipse.tycho.core.TargetPlatformConfiguration;
 import org.eclipse.tycho.core.osgitools.DefaultReactorProject;
@@ -40,8 +39,12 @@ public class DefaultDependencyResolverFactory {
     private PlexusContainer container;
 
     public DependencyResolver lookupDependencyResolver(MavenProject project) {
-        ReactorProject reactorProject = DefaultReactorProject.adapt(project);
-        Properties properties = (Properties) reactorProject.getContextValue(TychoConstants.CTX_MERGED_PROPERTIES);
+        return lookupDependencyResolver(DefaultReactorProject.adapt(project));
+    }
+
+    public DependencyResolver lookupDependencyResolver(ReactorProject reactorProject) {
+
+        Properties properties = reactorProject.getProperties();
         TargetPlatformConfiguration configuration = TychoProjectUtils.getTargetPlatformConfiguration(reactorProject);
 
         if (properties.getProperty("tycho.targetPlatform") != null) {

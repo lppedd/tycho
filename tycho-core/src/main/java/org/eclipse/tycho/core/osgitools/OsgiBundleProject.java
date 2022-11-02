@@ -50,7 +50,6 @@ import org.eclipse.osgi.container.ModuleContainer;
 import org.eclipse.osgi.container.ModuleRevision;
 import org.eclipse.osgi.container.namespaces.EclipsePlatformNamespace;
 import org.eclipse.osgi.internal.framework.FilterImpl;
-import org.eclipse.sisu.equinox.EquinoxServiceFactory;
 import org.eclipse.tycho.ArtifactDescriptor;
 import org.eclipse.tycho.ArtifactKey;
 import org.eclipse.tycho.ArtifactType;
@@ -91,7 +90,6 @@ import org.eclipse.tycho.core.utils.TychoProjectUtils;
 import org.eclipse.tycho.model.Feature;
 import org.eclipse.tycho.model.ProductConfiguration;
 import org.eclipse.tycho.model.UpdateSite;
-import org.eclipse.tycho.osgi.TychoServiceFactory;
 import org.eclipse.tycho.osgi.adapters.MavenLoggerAdapter;
 import org.eclipse.tycho.p2.resolver.facade.P2ResolutionResult;
 import org.eclipse.tycho.p2.resolver.facade.P2ResolutionResult.Entry;
@@ -131,16 +129,11 @@ public class OsgiBundleProject extends AbstractTychoProject implements BundlePro
     @Requirement
     private ToolchainManager toolchainManager;
 
-    @Requirement(hint = TychoServiceFactory.HINT)
-    private EquinoxServiceFactory equinox;
+    @Requirement
+    P2ResolverFactory resolverFactory;
 
     @Requirement
     private DeclarativeServiceConfigurationReader dsConfigReader;
-
-    @Override
-    public ArtifactDependencyWalker getDependencyWalker(ReactorProject project, TargetEnvironment environment) {
-        return getDependencyWalker(project);
-    }
 
     @Override
     public ArtifactDependencyWalker getDependencyWalker(ReactorProject project) {
@@ -293,8 +286,8 @@ public class OsgiBundleProject extends AbstractTychoProject implements BundlePro
         List<AccessRule> bootClasspathExtraAccessRules = dependencyComputer.computeBootClasspathExtraAccessRules(state);
 
         addPDESourceRoots(project);
-        LinkedHashMap<ArtifactKey, List<ClasspathEntry>> classpathMap = classpath.stream()
-                .collect(Collectors.groupingBy(cpe -> cpe.getArtifactKey(), LinkedHashMap::new, Collectors.toList()));
+        LinkedHashMap<ArtifactKey, List<ClasspathEntry>> classpathMap = classpath.stream().collect(
+                Collectors.groupingBy(ClasspathEntry::getArtifactKey, LinkedHashMap::new, Collectors.toList()));
         if (logger.isDebugEnabled()) {
             for (var entry : classpathMap.entrySet()) {
                 List<ClasspathEntry> list = entry.getValue();
@@ -319,8 +312,7 @@ public class OsgiBundleProject extends AbstractTychoProject implements BundlePro
             }
             ArtifactKey key = entry.getKey();
             ReactorProject compositeProject = findProjectForKey(reactorProject, key);
-            List<File> compositeFiles = list.stream().flatMap(cpe -> cpe.getLocations().stream())
-                    .collect(Collectors.toList());
+            List<File> compositeFiles = list.stream().flatMap(cpe -> cpe.getLocations().stream()).toList();
             Collection<AccessRule> compositeRules = mergeRules(list);
             return Stream.of(new ClasspathEntry() {
 
@@ -353,7 +345,7 @@ public class OsgiBundleProject extends AbstractTychoProject implements BundlePro
                 }
 
             });
-        }).collect(Collectors.toList());
+        }).toList();
         return new BundleClassPath(uniqueClasspath, strictBootClasspathAccessRules, bootClasspathExtraAccessRules);
     }
 
@@ -386,10 +378,8 @@ public class OsgiBundleProject extends AbstractTychoProject implements BundlePro
         List<ClasspathEntry> list = new ArrayList<>();
         Collection<ProjectClasspathEntry> entries = getEclipsePluginProject(reactorProject).getClasspathEntries();
         for (ProjectClasspathEntry cpe : entries) {
-            if (cpe instanceof JUnitClasspathContainerEntry) {
-                JUnitClasspathContainerEntry junit = (JUnitClasspathContainerEntry) cpe;
+            if (cpe instanceof JUnitClasspathContainerEntry junit) {
                 logger.info("Resolve JUnit " + junit.getJUnitSegment() + " classpath container...");
-                P2ResolverFactory resolverFactory = equinox.getService(P2ResolverFactory.class);
                 P2Resolver resolver = resolverFactory.createResolver(new MavenLoggerAdapter(logger, false));
                 TargetPlatform tp = TychoProjectUtils.getTargetPlatform(reactorProject);
                 Collection<P2ResolutionResult> result = resolver.resolveArtifactDependencies(tp, junit.getArtifacts())
@@ -462,8 +452,8 @@ public class OsgiBundleProject extends AbstractTychoProject implements BundlePro
             try {
                 pdeProject = new EclipsePluginProjectImpl(otherProject, otherProject.getBuildProperties(),
                         classpathParser.parse(otherProject.getBasedir()));
-                if (otherProject instanceof DefaultReactorProject) {
-                    populateProperties(((DefaultReactorProject) otherProject).project.getProperties(), pdeProject);
+                if (otherProject instanceof DefaultReactorProject defaultReactorProject) {
+                    populateProperties(defaultReactorProject.project.getProperties(), pdeProject);
                 }
                 otherProject.setContextValue(TychoConstants.CTX_ECLIPSE_PLUGIN_PROJECT, pdeProject);
             } catch (IOException e) {
@@ -498,9 +488,8 @@ public class OsgiBundleProject extends AbstractTychoProject implements BundlePro
     }
 
     public synchronized BundleClassPath getBundleClassPath(ReactorProject project) {
-        Object contextValue = project.getContextValue(CTX_CLASSPATH);
-        if (contextValue instanceof BundleClassPath) {
-            return (BundleClassPath) contextValue;
+        if (project.getContextValue(CTX_CLASSPATH) instanceof BundleClassPath bundleClassPath) {
+            return bundleClassPath;
         }
         BundleClassPath cp = resolveClassPath(getMavenSession(project), getMavenProject(project));
         project.setContextValue(CTX_CLASSPATH, cp);
@@ -604,12 +593,11 @@ public class OsgiBundleProject extends AbstractTychoProject implements BundlePro
             }
         }
         for (ProjectClasspathEntry entry : pdeProject.getClasspathEntries()) {
-            if (entry instanceof LibraryClasspathEntry) {
-                LibraryClasspathEntry libraryClasspathEntry = (LibraryClasspathEntry) entry;
+            if (entry instanceof LibraryClasspathEntry libraryClasspathEntry) {
                 File path = libraryClasspathEntry.getLibraryPath();
-                classpath.add(new DefaultClasspathEntry(null, readOrCreateArtifactKey(path, () -> {
-                    return new DefaultArtifactKey("jar", path.getAbsolutePath());
-                }), Collections.singletonList(path), null));
+                classpath.add(new DefaultClasspathEntry(null,
+                        readOrCreateArtifactKey(path, () -> new DefaultArtifactKey("jar", path.getAbsolutePath())),
+                        Collections.singletonList(path), null));
             }
         }
         //Fragments are like embedded dependencies...
@@ -865,8 +853,8 @@ public class OsgiBundleProject extends AbstractTychoProject implements BundlePro
         List<ArtifactKey> list = new ArrayList<>();
         Collection<ProjectClasspathEntry> entries = getEclipsePluginProject(project).getClasspathEntries();
         for (ProjectClasspathEntry cpe : entries) {
-            if (cpe instanceof JUnitClasspathContainerEntry) {
-                list.addAll(((JUnitClasspathContainerEntry) cpe).getArtifacts());
+            if (cpe instanceof JUnitClasspathContainerEntry junitEntry) {
+                list.addAll(junitEntry.getArtifacts());
             }
         }
         return list;

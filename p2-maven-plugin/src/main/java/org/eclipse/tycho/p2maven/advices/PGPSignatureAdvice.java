@@ -22,7 +22,6 @@ import org.eclipse.equinox.p2.publisher.actions.IPropertyAdvice;
 import org.eclipse.equinox.p2.repository.artifact.IArtifactDescriptor;
 import org.eclipse.equinox.p2.repository.artifact.spi.ArtifactDescriptor;
 
-@SuppressWarnings("restriction")
 public class PGPSignatureAdvice extends AbstractAdvice implements IPropertyAdvice {
     private final String id;
     private final Version version;
@@ -60,8 +59,7 @@ public class PGPSignatureAdvice extends AbstractAdvice implements IPropertyAdvic
     @Override
     public Map<String, String> getArtifactProperties(IInstallableUnit iu, IArtifactDescriptor descriptor) {
         // workaround Bug 539672
-        if (descriptor instanceof ArtifactDescriptor) {
-            ArtifactDescriptor artifactDescriptor = (ArtifactDescriptor) descriptor;
+        if (descriptor instanceof ArtifactDescriptor artifactDescriptor) {
             artifactDescriptor.setProperty("pgp.signatures", signature);
             if (publicKeys != null) {
                 artifactDescriptor.setProperty("pgp.publicKeys", publicKeys);

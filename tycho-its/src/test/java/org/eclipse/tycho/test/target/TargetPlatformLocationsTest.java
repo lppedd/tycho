@@ -13,13 +13,13 @@
 package org.eclipse.tycho.test.target;
 
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.apache.maven.it.VerificationException;
 import org.apache.maven.it.Verifier;
@@ -37,6 +37,12 @@ public class TargetPlatformLocationsTest extends AbstractTychoIntegrationTest {
 		Verifier verifier = getVerifier("target.maven", false, true);
 		verifier.executeGoal("verify");
 		verifier.verifyErrorFreeLog();
+		// check that there are no warnings
+		assertThrows("Warning about missing digest algorithm was printed to the log", VerificationException.class,
+				() -> {
+					verifier.verifyTextInLog(
+							"No digest algorithm is available to verify download of osgi.bundle,org.apache.velocity");
+				});
 	}
 
 	@Test
@@ -102,7 +108,7 @@ public class TargetPlatformLocationsTest extends AbstractTychoIntegrationTest {
 		verifier.verifyErrorFreeLog();
 
 		List<String> out = Files.lines(annotBundleManifestFile.toPath())
-				.filter(line -> !line.contains("Export-Package")).collect(Collectors.toList());
+				.filter(line -> !line.contains("Export-Package")).toList();
 		Files.write(annotBundleManifestFile.toPath(), out, StandardOpenOption.WRITE,
 				StandardOpenOption.TRUNCATE_EXISTING);
 

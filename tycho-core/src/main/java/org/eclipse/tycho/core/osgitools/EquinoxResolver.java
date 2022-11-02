@@ -59,7 +59,6 @@ import org.eclipse.tycho.ArtifactDescriptor;
 import org.eclipse.tycho.ArtifactType;
 import org.eclipse.tycho.ReactorProject;
 import org.eclipse.tycho.TargetEnvironment;
-import org.eclipse.tycho.TychoConstants;
 import org.eclipse.tycho.artifacts.DependencyArtifacts;
 import org.eclipse.tycho.core.TargetPlatformConfiguration;
 import org.eclipse.tycho.core.ee.ExecutionEnvironmentUtils;
@@ -197,13 +196,12 @@ public class EquinoxResolver {
 
         TargetPlatformConfiguration configuration = TychoProjectUtils.getTargetPlatformConfiguration(project);
         TargetEnvironment environment = configuration.getEnvironments().get(0);
-        if (artifacts instanceof MultiEnvironmentDependencyArtifacts) {
-            environment = ((MultiEnvironmentDependencyArtifacts) artifacts).getPlatforms().stream().findFirst()
-                    .orElse(environment);
+        if (artifacts instanceof MultiEnvironmentDependencyArtifacts multiEnv) {
+            environment = multiEnv.getPlatforms().stream().findFirst().orElse(environment);
         }
         logger.debug("Using TargetEnvironment " + environment.toFilterExpression() + " to create resolver properties");
         Properties properties = new Properties();
-        properties.putAll((Properties) project.getContextValue(TychoConstants.CTX_MERGED_PROPERTIES));
+        properties.putAll(project.getProperties());
 
         return getPlatformProperties(properties, mavenSession, environment, ee);
     }
@@ -250,13 +248,11 @@ public class EquinoxResolver {
             @Override
             public String getProperty(String key) {
                 // see https://github.com/eclipse/tycho/issues/213#issuecomment-912547700 for details about what these does
-                switch (key) {
-                case "equinox.resolver.revision.batch.size":
-                    return config.batchSize;
-                case "equinox.resolver.batch.timeout":
-                    return EquinoxResolverConfiguration.BATCH_TIMEOUT;
-                }
-                return super.getProperty(key);
+                return switch (key) {
+                case "equinox.resolver.revision.batch.size" -> config.batchSize;
+                case "equinox.resolver.batch.timeout" -> EquinoxResolverConfiguration.BATCH_TIMEOUT;
+                default -> super.getProperty(key);
+                };
             }
 
             @Override
@@ -357,14 +353,13 @@ public class EquinoxResolver {
                 ReactorProject mavenProject = artifact.getMavenProject();
                 if (mavenProject != null) {
                     Collection<String> additionalBundles = mavenProject.getBuildProperties().getAdditionalBundles();
-                    if (additionalBundles.size() > 0) {
+                    if (!additionalBundles.isEmpty()) {
                         List<String> reqb = new ArrayList<>();
                         String value = mf.getValue(Constants.REQUIRE_BUNDLE);
                         if (value != null) {
                             reqb.add(value);
                         }
-                        reqb.addAll(additionalBundles.stream().map(b -> b + ";resolution:=optional")
-                                .collect(Collectors.toList()));
+                        reqb.addAll(additionalBundles.stream().map(b -> b + ";resolution:=optional").toList());
                         mf.getHeaders().put(Constants.REQUIRE_BUNDLE, String.join(",", reqb));
                     }
                     projects.put(location, mf);

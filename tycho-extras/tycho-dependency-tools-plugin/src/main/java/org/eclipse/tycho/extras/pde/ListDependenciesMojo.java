@@ -17,7 +17,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -66,12 +65,12 @@ public class ListDependenciesMojo extends AbstractMojo {
         } catch (IOException ex) {
             throw new MojoFailureException(ex.getMessage(), ex);
         }
-        Set<String> written = new HashSet<String>();
+        Set<String> written = new HashSet<>();
         try (BufferedWriter writer = Files.newBufferedWriter(outputFile.toPath())) {
             List<ArtifactDescriptor> dependencies = TychoProjectUtils
                     .getDependencyArtifacts(DefaultReactorProject.adapt(project)).getArtifacts().stream()
                     .filter(desc -> !desc.getLocation(true).equals(project.getBasedir())) // remove self
-                    .collect(Collectors.toList());
+                    .toList();
             for (ArtifactDescriptor dependnecy : dependencies) {
                 if (dependnecy.getMavenProject() == null) {
                     File location = dependnecy.getLocation(true);
@@ -82,8 +81,7 @@ public class ListDependenciesMojo extends AbstractMojo {
                 }
             }
             TychoProject projectType = projectTypes.get(project.getPackaging());
-            if (projectType instanceof OsgiBundleProject) {
-                OsgiBundleProject bundleProject = (OsgiBundleProject) projectType;
+            if (projectType instanceof OsgiBundleProject bundleProject) {
                 Map<String, ResolvedArtifactKey> artifacts = bundleProject
                         .getAnnotationArtifacts(DefaultReactorProject.adapt(project));
                 for (ResolvedArtifactKey artifactDescriptor : artifacts.values()) {

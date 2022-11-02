@@ -14,7 +14,6 @@ package org.eclipse.tycho.extras.custombundle;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.project.MavenProject;
@@ -37,9 +36,8 @@ public class CustomBundleInstallableUnitProvider implements InstallableUnitProvi
 	public Collection<IInstallableUnit> getInstallableUnits(MavenProject project, MavenSession session)
 			throws CoreException {
 		List<BundleDependenciesAction> actions = CustomBundleP2MetadataProvider.getCustomArtifacts(project)
-				.map(artifact -> {
-					return new BundleDependenciesAction(artifact.getLocation(), OptionalResolutionAction.REQUIRE);
-				}).collect(Collectors.toList());
+				.map(artifact -> new BundleDependenciesAction(artifact.getLocation(), OptionalResolutionAction.REQUIRE))
+				.toList();
 		return publisher.publishMetadata(actions);
 	}
 

@@ -15,6 +15,7 @@ package org.eclipse.tycho;
 
 import java.io.File;
 import java.util.Objects;
+import java.util.Properties;
 
 /**
  * A Tycho project in the reactor.
@@ -23,6 +24,7 @@ public interface ReactorProject extends IDependencyMetadata {
 
     static final String CTX_INTERPOLATOR = "tycho.project.interpolator";
     static final String CTX_BUILDPROPERTIESPARSER = "tycho.project.buildpropertiesparser";
+    static final String CTX_MERGED_PROPERTIES = "tycho.project.mergedProperties";
 
     /**
      * Conventional sources jar Maven artifact classifier.
@@ -69,6 +71,10 @@ public interface ReactorProject extends IDependencyMetadata {
 
     public String getExpandedVersion();
 
+    default Properties getProperties() {
+        return (Properties) getContextValue(CTX_MERGED_PROPERTIES);
+    }
+
     // misc
     /**
      * 
@@ -96,4 +102,6 @@ public interface ReactorProject extends IDependencyMetadata {
     public boolean sameProject(/* MavenProject */Object otherProject);
 
     public String getName();
+
+    <T> T adapt(Class<T> target);
 }

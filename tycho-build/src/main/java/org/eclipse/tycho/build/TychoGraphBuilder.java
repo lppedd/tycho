@@ -74,8 +74,7 @@ public class TychoGraphBuilder extends DefaultGraphBuilder {
 		Objects.requireNonNull(session);
 		// Tell the polyglot mappings that we are in extension mode
 		for (Mapping mapping : polyglotMappings.values()) {
-			if (mapping instanceof AbstractTychoMapping) {
-				AbstractTychoMapping tychoMapping = (AbstractTychoMapping) mapping;
+			if (mapping instanceof AbstractTychoMapping tychoMapping) {
 				tychoMapping.setExtensionMode(true);
 				tychoMapping.setMultiModuleProjectDirectory(session.getRequest().getMultiModuleProjectDirectory());
 				if (session.getRequest().getSystemProperties().getProperty("tycho.buildqualifier.format") != null) {
@@ -171,7 +170,7 @@ public class TychoGraphBuilder extends DefaultGraphBuilder {
 				}
 			}
 			Queue<ProjectRequest> queue = new ConcurrentLinkedQueue<>(graph.getSortedProjects().stream()
-					.map(p -> new ProjectRequest(p, makeDownstream, makeUpstream, null)).collect(Collectors.toList()));
+					.map(p -> new ProjectRequest(p, makeDownstream, makeUpstream, null)).toList());
 			loggerAdapter.debug("Computing additional " + makeBehavior
 					+ " dependencies based on initial project set of " + queue.stream().map(r -> r.mavenProject)
 							.map(MavenProject::getName).collect(Collectors.joining(", ")));
@@ -188,11 +187,11 @@ public class TychoGraphBuilder extends DefaultGraphBuilder {
 					}
 					if (projectRequest.addRequires) {
 						dependencyClosure.dependencies()//
-								.filter(entry -> {
-									return entry.getValue().stream()//
+								.filter(entry -> 
+									entry.getValue().stream()//
 											.flatMap(dependency -> dependencyClosure.getProject(dependency).stream())//
-											.anyMatch(projectRequest::matches);
-								})//
+											.anyMatch(projectRequest::matches)
+								)//
 								.map(Entry::getKey)//
 								.distinct()//
 								.peek(project -> loggerAdapter.debug(" + add project '" + project.getId()
@@ -223,9 +222,7 @@ public class TychoGraphBuilder extends DefaultGraphBuilder {
 			selectedProjects.stream()
 					.sorted(Comparator.comparing(MavenProject::getGroupId, String.CASE_INSENSITIVE_ORDER)
 							.thenComparing(MavenProject::getArtifactId, String.CASE_INSENSITIVE_ORDER))
-					.forEachOrdered(p -> {
-						log.debug(p.getId());
-					});
+					.forEachOrdered(p -> log.debug(p.getId()));
 			return Result.success(new DefaultProjectDependencyGraph(projects, selectedProjects));
 		} catch (DuplicateProjectException | CycleDetectedException e) {
 			log.error("Can't compute project dependency graph", e);
@@ -242,8 +239,8 @@ public class TychoGraphBuilder extends DefaultGraphBuilder {
 		Exception exception;
 		if (throwable == null) {
 			exception = null;
-		} else if (throwable instanceof Exception) {
-			exception = (Exception) throwable;
+		} else if (throwable instanceof Exception ex) {
+			exception = ex;
 		} else {
 			exception = new ExecutionException(throwable);
 		}

@@ -16,7 +16,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.codehaus.plexus.component.annotations.Component;
 import org.codehaus.plexus.component.annotations.Requirement;
@@ -91,7 +90,7 @@ public class InstallableUnitSlicer {
 				}
 			}
 			return true;
-		}).collect(Collectors.toList());
+		}).toList();
 		for (IInstallableUnit iu : avaiableIUs.query(QueryUtil.ALL_UNITS, new NullProgressMonitor()).toSet()) {
 			for (IRequirement requirement : collect) {
 				if (iu.satisfies(requirement)) {
@@ -102,12 +101,12 @@ public class InstallableUnitSlicer {
 				}
 			}
 		}
-		return new CollectionResult<IInstallableUnit>(result);
+		return new CollectionResult<>(result);
 	}
 
 	private final class TychoSlicer extends PermissiveSlicer {
 		private TychoSlicer(IQueryable<IInstallableUnit> input) {
-			super(input, new HashMap<String, String>(), //
+			super(input, new HashMap<>(), //
 					true, // includeOptionalDependencies
 					true, // everythingGreedy
 					true, // evalFilterTo

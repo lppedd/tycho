@@ -14,7 +14,7 @@ package org.eclipse.tycho.packaging;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.InvalidPathException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
@@ -23,9 +23,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import org.apache.maven.archiver.MavenArchiveConfiguration;
 import org.apache.maven.artifact.Artifact;
+import org.apache.maven.artifact.handler.ArtifactHandler;
+import org.apache.maven.artifact.handler.manager.ArtifactHandlerManager;
+import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Dependency;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Parent;
@@ -34,6 +40,7 @@ import org.apache.maven.model.io.ModelWriter;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
+import org.apache.maven.plugin.logging.Log;
 import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
@@ -55,8 +62,11 @@ public class UpdateConsumerPomMojo extends AbstractMojo {
 
 	private static final String POLYGLOT_POM_TYCHO = ".polyglot.pom.tycho";
 
-	@Parameter(property = "project", readonly = true)
+	@Parameter(property = "project", readonly = true, required = true)
 	protected MavenProject project;
+
+	@Parameter(defaultValue = "${session}", readonly = true, required = true)
+	private MavenSession session;
 
 	@Component(role = ModelWriter.class)
 	protected ModelWriter modelWriter;
@@ -66,6 +76,9 @@ public class UpdateConsumerPomMojo extends AbstractMojo {
 
 	@Component
 	private Map<String, ArtifactCoordinateResolver> artifactCoordinateResolvers;
+
+	@Component
+	ArtifactHandlerManager artifactHandlerManager;
 
 	/**
 	 * The directory where the tycho generated POM file will be written to.
@@ -84,6 +97,13 @@ public class UpdateConsumerPomMojo extends AbstractMojo {
 	 */
 	@Parameter(defaultValue = "true")
 	protected boolean deleteOnExit = true;
+
+	/**
+	 * replace they type of a dependency (e.g. 'eclipse-plugin') with its extension
+	 * (e.g. 'jar')
+	 */
+	@Parameter(defaultValue = "true")
+	protected boolean replaceTypeWithExtension = true;
 
 	@Parameter
 	protected Boolean skipPomGeneration;
@@ -114,7 +134,7 @@ public class UpdateConsumerPomMojo extends AbstractMojo {
 	@Parameter
 	private MavenArchiveConfiguration archive = new MavenArchiveConfiguration();
 
-	@Parameter(defaultValue = "local,central")
+	@Parameter(defaultValue = "local,p2,central")
 	private String resolver;
 
 	private Map<String, Optional<Dependency>> resolvedDependencies = new HashMap<>();
@@ -131,7 +151,8 @@ public class UpdateConsumerPomMojo extends AbstractMojo {
 		if (outputDirectory == null) {
 			outputDirectory = project.getBasedir();
 		}
-		getLog().debug("Generate pom descriptor with updated dependencies...");
+		Log log = getLog();
+		log.debug("Generate pom descriptor with updated dependencies...");
 		Model projectModel;
 		try {
 			projectModel = modelReader.read(project.getFile(), null);
@@ -141,12 +162,23 @@ public class UpdateConsumerPomMojo extends AbstractMojo {
 		List<Dependency> dependencies = projectModel.getDependencies();
 		dependencies.clear();
 		List<Dependency> list = Objects.requireNonNullElse(project.getDependencies(), Collections.emptyList());
+		Set<String> p2Skipped = new TreeSet<>();
+		int resolved = 0;
 		for (Dependency dep : list) {
 			Dependency copy = dep.clone();
 			if (Artifact.SCOPE_SYSTEM.equals(dep.getScope())) {
 				if (!handleSystemScopeDependency(copy)) {
+					p2Skipped.add(dep.getManagementKey() + " @ "
+							+ ArtifactCoordinateResolver.getPath(dep).map(String::valueOf).orElse(dep.getSystemPath()));
 					// skip this ...
 					continue;
+				}
+				resolved++;
+			}
+			if (replaceTypeWithExtension && PackagingType.TYCHO_PACKAGING_TYPES.contains(copy.getType())) {
+				ArtifactHandler handler = artifactHandlerManager.getArtifactHandler(copy.getType());
+				if (handler != null) {
+					copy.setType(handler.getExtension());
 				}
 			}
 			dependencies.add(copy);
@@ -163,10 +195,31 @@ public class UpdateConsumerPomMojo extends AbstractMojo {
 		if (deleteOnExit) {
 			output.deleteOnExit();
 		}
+		if (p2Skipped.isEmpty()) {
+			log.info("All system scoped dependencies where mapped to maven artifacts.");
+		} else {
+			log.warn(resolved + " system scoped dependencies where mapped to maven artifacts, "
+					+ p2Skipped.size()
+					+ " where skipped!");
+			if (log.isDebugEnabled()) {
+				for (String skipped : p2Skipped) {
+					log.debug("Skipped: " + skipped);
+				}
+			}
+		}
 		try {
 			modelWriter.write(output, null, projectModel);
 		} catch (IOException e) {
 			throw new MojoExecutionException("writing the model failed!", e);
+		}
+		try {
+			if (p2Skipped.size() > 0) {
+				File file = new File(project.getBuild().getDirectory(), "skippedP2Dependencies.txt");
+				file.getParentFile().mkdirs();
+				Files.writeString(file.toPath(), p2Skipped.stream().collect(Collectors.joining("\r\n")));
+			}
+		} catch (IOException e) {
+			log.warn("Writing additional information failed: " + e);
 		}
 		if (updatePomFile) {
 			project.setFile(output);
@@ -177,20 +230,25 @@ public class UpdateConsumerPomMojo extends AbstractMojo {
 	private boolean handleSystemScopeDependency(Dependency dep) {
 		if (dep.getGroupId().startsWith(TychoConstants.P2_GROUPID_PREFIX) || isEmbeddedJar(dep)) {
 			if (mapP2Dependencies && !isEmbeddedJar(dep)) {
-				Path p = getPath(dep);
-				Optional<Dependency> resolved = resolvedDependencies.computeIfAbsent(p.normalize().toString(), nil -> {
-					return Arrays.stream(resolver.split(",")).map(String::strip).map(artifactCoordinateResolvers::get)
-							.filter(Objects::nonNull).flatMap(resolver -> resolver.resolve(p).stream()).findFirst();
-				});
-				if (resolved.isPresent()) {
-					dep.setScope(Artifact.SCOPE_COMPILE); // TODO what about test dependencies?
-					dep.setSystemPath(null);
-					Dependency dependency = resolved.get();
-					dep.setArtifactId(dependency.getArtifactId());
-					dep.setGroupId(dependency.getGroupId());
-					dep.setVersion(dependency.getVersion());
-					dep.setType(dependency.getType());
-					return true;
+				Optional<Path> path = ArtifactCoordinateResolver.getPath(dep);
+				if (path.isPresent()) {
+					Optional<Dependency> resolved = resolvedDependencies
+							.computeIfAbsent(path.get().normalize().toString(), nil -> {
+								return Arrays.stream(resolver.split(",")).map(String::strip)
+										.map(artifactCoordinateResolvers::get).filter(Objects::nonNull)
+										.flatMap(resolver -> resolver.resolve(dep, project, session).stream())
+										.findFirst();
+							});
+					if (resolved.isPresent()) {
+						dep.setScope(Artifact.SCOPE_COMPILE); // TODO what about test dependencies?
+						dep.setSystemPath(null);
+						Dependency dependency = resolved.get();
+						dep.setArtifactId(dependency.getArtifactId());
+						dep.setGroupId(dependency.getGroupId());
+						dep.setVersion(dependency.getVersion());
+						dep.setType(dependency.getType());
+						return true;
+					}
 				}
 			}
 			dep.setOptional(true);
@@ -199,18 +257,6 @@ public class UpdateConsumerPomMojo extends AbstractMojo {
 			return includeP2Dependencies;
 		}
 		return true;
-	}
-
-	private Path getPath(Dependency dep) {
-		String systemPath = dep.getSystemPath();
-		if (systemPath != null) {
-			try {
-				return Path.of(systemPath).toAbsolutePath();
-			} catch (InvalidPathException e) {
-				// then we can't use it ...
-			}
-		}
-		return null;
 	}
 
 	private boolean isEmbeddedJar(Dependency dep) {

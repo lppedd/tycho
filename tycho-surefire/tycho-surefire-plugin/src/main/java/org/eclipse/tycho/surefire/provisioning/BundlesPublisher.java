@@ -31,7 +31,6 @@ import org.eclipse.equinox.p2.publisher.eclipse.FeaturesAndBundlesPublisherAppli
 public class BundlesPublisher {
 
     private List<File> bundles = new ArrayList<>();
-    private File workingDir;
     private Logger log;
 
     public BundlesPublisher(Logger log) {
@@ -62,7 +61,7 @@ public class BundlesPublisher {
         }
         log.info("Publishing " + bundles.size() + " bundles to " + targetDirectory);
         FeaturesAndBundlesPublisherApplication application = new FeaturesAndBundlesPublisherApplication();
-        List<String> arguments = new ArrayList<String>();
+        List<String> arguments = new ArrayList<>();
         arguments.add("-artifactRepository");
         arguments.add(targetDirectory.toURI().toString());
         arguments.add("-metadataRepository");
